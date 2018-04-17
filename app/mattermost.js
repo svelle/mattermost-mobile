@@ -59,6 +59,8 @@ import tracker from 'app/utils/time_tracker';
 import {stripTrailingSlashes} from 'app/utils/url';
 import {EmojiIndicesByAlias} from 'app/utils/emojis';
 
+import './fetch_preconfig';
+
 import LocalConfig from 'assets/config';
 
 const {StatusBarManager} = NativeModules;

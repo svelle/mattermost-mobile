@@ -354,6 +354,7 @@ export function shareExtensionData() {
 
         switch (action.type) {
         case UserTypes.LOGOUT_SUCCESS:
+            mattermostBucket.removePreference('cert', Config.AppGroupId);
             mattermostBucket.removePreference('emm', Config.AppGroupId);
             mattermostBucket.removeFile('entities', Config.AppGroupId);
             break;

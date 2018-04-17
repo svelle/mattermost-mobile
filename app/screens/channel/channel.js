@@ -22,6 +22,7 @@ import OfflineIndicator from 'app/components/offline_indicator';
 import PostListRetry from 'app/components/post_list_retry';
 import SafeAreaView from 'app/components/safe_area_view';
 import StatusBar from 'app/components/status_bar';
+import mattermostBucket from 'app/mattermost_bucket';
 import {preventDoubleTap} from 'app/utils/tap';
 import {makeStyleSheetFromTheme} from 'app/utils/theme';
 import PostTextbox from 'app/components/post_textbox';
@@ -154,14 +155,13 @@ class Channel extends PureComponent {
         const {actions} = this.props;
         const {
             closeWebSocket,
-            initWebSocket,
             startPeriodicStatusUpdates,
             stopPeriodicStatusUpdates,
         } = actions;
         const isActive = appState === 'active';
 
         if (isActive) {
-            initWebSocket(Platform.OS);
+            this.initializeWebSocket();
             startPeriodicStatusUpdates();
         } else {
             closeWebSocket(true);
@@ -174,13 +174,12 @@ class Channel extends PureComponent {
         const {
             closeWebSocket,
             connection,
-            initWebSocket,
             startPeriodicStatusUpdates,
             stopPeriodicStatusUpdates,
         } = actions;
 
         if (isConnected) {
-            initWebSocket(Platform.OS);
+            this.initializeWebSocket();
             startPeriodicStatusUpdates();
         } else {
             closeWebSocket(true);
@@ -191,6 +190,18 @@ class Channel extends PureComponent {
 
     handleLeaveTeam = () => {
         this.props.actions.selectDefaultTeam();
+    };
+
+    initializeWebSocket = async () => {
+        const {actions} = this.props;
+        const {initWebSocket} = actions;
+        const platform = Platform.OS;
+        let certificate = null;
+        if (platform === 'ios') {
+            certificate = await mattermostBucket.getPreference('cert', LocalConfig.AppGroupId);
+        }
+
+        initWebSocket(platform, null, null, null, {certificate});
     };
 
     loadChannels = (teamId) => {

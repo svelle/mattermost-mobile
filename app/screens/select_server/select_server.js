@@ -18,18 +18,21 @@ import {
 } from 'react-native';
 import Button from 'react-native-button';
 import urlParse from 'url-parse';
+import RNFetchBlob from 'react-native-fetch-blob';
 
 import {Client4} from 'mattermost-redux/client';
 
-import Config from 'assets/config';
 import ErrorText from 'app/components/error_text';
 import FormattedText from 'app/components/formatted_text';
 import TextInputWithLocalizedPlaceholder from 'app/components/text_input_with_localized_placeholder';
+import mattermostBucket from 'app/mattermost_bucket';
 import {GlobalStyles} from 'app/styles';
 import {preventDoubleTap} from 'app/utils/tap';
 import {isValidUrl, stripTrailingSlashes} from 'app/utils/url';
 import {UpgradeTypes} from 'app/constants/view';
 import checkUpgradeType from 'app/utils/client_upgrade';
+
+import Config from 'assets/config';
 
 import logo from 'assets/images/logo.png';
 
@@ -107,6 +110,23 @@ class SelectServer extends PureComponent {
         }
     }
 
+    goToNextScreen = (screen, title) => {
+        const {navigator, theme} = this.props;
+        navigator.push({
+            screen,
+            title,
+            animated: true,
+            backButtonTitle: '',
+            navigatorStyle: {
+                navBarHidden: Config.AutoSelectServerUrl,
+                disabledBackGesture: Config.AutoSelectServerUrl,
+                navBarTextColor: theme.sidebarHeaderTextColor,
+                navBarBackgroundColor: theme.sidebarHeaderBg,
+                navBarButtonColor: theme.sidebarHeaderTextColor,
+            },
+        });
+    };
+
     handleNavigatorEvent = (event) => {
         if (event.id === 'didDisappear') {
             this.setState({
@@ -139,7 +159,7 @@ class SelectServer extends PureComponent {
     }
 
     handleLoginOptions = (props) => {
-        const {config, intl, license, theme} = props;
+        const {config, intl, license} = props;
         const samlEnabled = config.EnableSaml === 'true' && license.IsLicensed === 'true' && license.SAML === 'true';
         const gitlabEnabled = config.EnableSignUpWithGitLab === 'true';
 
@@ -158,21 +178,15 @@ class SelectServer extends PureComponent {
             title = intl.formatMessage({id: 'mobile.routes.login', defaultMessage: 'Login'});
         }
 
-        this.props.navigator.push({
-            screen,
-            title,
-            animated: true,
-            backButtonTitle: '',
-            navigatorStyle: {
-                navBarHidden: Config.AutoSelectServerUrl,
-                disabledBackGesture: Config.AutoSelectServerUrl,
-                navBarTextColor: theme.sidebarHeaderTextColor,
-                navBarBackgroundColor: theme.sidebarHeaderBg,
-                navBarButtonColor: theme.sidebarHeaderTextColor,
-            },
-        });
-
         this.props.actions.resetPing();
+
+        if (Platform.OS === 'ios' && Config.ExperimentalClientSideCertEnable) {
+            setTimeout(() => {
+                this.goToNextScreen(screen, title);
+            }, 250);
+        } else {
+            this.goToNextScreen(screen, title);
+        }
     };
 
     handleAndroidKeyboard = () => {
@@ -208,7 +222,20 @@ class SelectServer extends PureComponent {
             return;
         }
 
-        this.pingServer(url);
+        if (Config.ExperimentalClientSideCertEnable && Platform.OS === 'ios') {
+            RNFetchBlob.cba.selectCertificate((certificate) => {
+                if (certificate) {
+                    mattermostBucket.setPreference('cert', certificate, Config.AppGroupId);
+                    window.fetch = new RNFetchBlob.polyfill.Fetch({
+                        auto: true,
+                        certificate,
+                    }).build();
+                    this.pingServer(url);
+                }
+            });
+        } else {
+            this.pingServer(url);
+        }
     });
 
     pingServer = (url) => {
