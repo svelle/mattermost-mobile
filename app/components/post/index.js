@@ -21,7 +21,6 @@ import Post from './post';
 
 function mapStateToProps(state, ownProps) {
     const post = getPost(state, ownProps.postId);
-
     const {config, license} = state.entities.general;
     const roles = getCurrentUserId(state) ? getCurrentUserRoles(state) : '';
     const myPreferences = getMyPreferences(state);
@@ -31,11 +30,15 @@ function mapStateToProps(state, ownProps) {
 
     let isFirstReply = true;
     let isLastReply = true;
+    let isConsecutivePost = false;
+    let isReply = false;
     let commentedOnPost = null;
     if (ownProps.renderReplies && post && post.root_id) {
         if (ownProps.previousPostId) {
             const previousPost = getPost(state, ownProps.previousPostId);
-
+            if (previousPost && previousPost.root_id) {
+                isReply = true;
+            }
             if (previousPost && (previousPost.id === post.root_id || previousPost.root_id === post.root_id)) {
                 // Previous post is root post or previous post is in same thread
                 isFirstReply = false;
@@ -53,6 +56,18 @@ function mapStateToProps(state, ownProps) {
             }
         }
     }
+
+    if (ownProps.previousPostId) {
+        const previousPost = getPost(state, ownProps.previousPostId);
+        if (previousPost && previousPost.isReply) {
+            console.log(previousPost.props.isReply);
+            console.log('previous was reply!');
+        }
+        if (previousPost && previousPost.user_id === post.user_id) {
+            isConsecutivePost = true;
+        }
+    }
+
 
     const {deviceWidth} = getDimensions(state);
 
@@ -78,6 +93,8 @@ function mapStateToProps(state, ownProps) {
         isFirstReply,
         isLastReply,
         commentedOnPost,
+        isConsecutivePost,
+        isReply,
         license,
         theme: getTheme(state),
         isFlagged: isPostFlagged(post.id, myPreferences),

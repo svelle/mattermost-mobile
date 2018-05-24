@@ -3,14 +3,7 @@
 
 import React, {PureComponent} from 'react';
 import PropTypes from 'prop-types';
-import {
-    Alert,
-    Clipboard,
-    Platform,
-    TouchableHighlight,
-    View,
-    ViewPropTypes,
-} from 'react-native';
+import {Alert, Clipboard, Platform, TouchableHighlight, View, ViewPropTypes} from 'react-native';
 import {intlShape} from 'react-intl';
 import MaterialIcon from 'react-native-vector-icons/MaterialIcons';
 
@@ -51,6 +44,9 @@ export default class Post extends PureComponent {
         renderReplies: PropTypes.bool,
         isFirstReply: PropTypes.bool,
         isLastReply: PropTypes.bool,
+        isReply: PropTypes.bool,
+        previousIsLastReply: PropTypes.bool,
+        isConsecutivePost: PropTypes.bool,
         isSearchResult: PropTypes.bool,
         commentedOnPost: PropTypes.object,
         license: PropTypes.object.isRequired,
@@ -139,7 +135,7 @@ export default class Post extends PureComponent {
 
     autofillUserMention = (username) => {
         this.props.actions.insertToDraft(`@${username} `);
-    }
+    };
 
     handleEditDisable = () => {
         this.setState({canEdit: false});
@@ -151,7 +147,10 @@ export default class Post extends PureComponent {
 
         Alert.alert(
             formatMessage({id: 'mobile.post.delete_title', defaultMessage: 'Delete Post'}),
-            formatMessage({id: 'mobile.post.delete_question', defaultMessage: 'Are you sure you want to delete this post?'}),
+            formatMessage({
+                id: 'mobile.post.delete_question',
+                defaultMessage: 'Are you sure you want to delete this post?',
+            }),
             [{
                 text: formatMessage({id: 'mobile.post.cancel', defaultMessage: 'Cancel'}),
                 style: 'cancel',
@@ -194,31 +193,30 @@ export default class Post extends PureComponent {
     handleAddReactionToPost = (emoji) => {
         const {post} = this.props;
         this.props.actions.addReaction(post.id, emoji);
-    }
+    };
 
     handleAddReaction = preventDoubleTap(() => {
         const {intl} = this.context;
         const {navigator, post, theme} = this.props;
 
-        MaterialIcon.getImageSource('close', 20, theme.sidebarHeaderTextColor).
-            then((source) => {
-                navigator.showModal({
-                    screen: 'AddReaction',
-                    title: intl.formatMessage({id: 'mobile.post_info.add_reaction', defaultMessage: 'Add Reaction'}),
-                    animated: true,
-                    navigatorStyle: {
-                        navBarTextColor: theme.sidebarHeaderTextColor,
-                        navBarBackgroundColor: theme.sidebarHeaderBg,
-                        navBarButtonColor: theme.sidebarHeaderTextColor,
-                        screenBackgroundColor: theme.centerChannelBg,
-                    },
-                    passProps: {
-                        post,
-                        closeButton: source,
-                        onEmojiPress: this.handleAddReactionToPost,
-                    },
-                });
+        MaterialIcon.getImageSource('close', 20, theme.sidebarHeaderTextColor).then((source) => {
+            navigator.showModal({
+                screen: 'AddReaction',
+                title: intl.formatMessage({id: 'mobile.post_info.add_reaction', defaultMessage: 'Add Reaction'}),
+                animated: true,
+                navigatorStyle: {
+                    navBarTextColor: theme.sidebarHeaderTextColor,
+                    navBarBackgroundColor: theme.sidebarHeaderBg,
+                    navBarButtonColor: theme.sidebarHeaderTextColor,
+                    screenBackgroundColor: theme.centerChannelBg,
+                },
+                passProps: {
+                    post,
+                    closeButton: source,
+                    onEmojiPress: this.handleAddReactionToPost,
+                },
             });
+        });
     });
 
     handleFailedPostPress = () => {
@@ -354,7 +352,7 @@ export default class Post extends PureComponent {
         }
 
         Clipboard.setString(textToCopy);
-    }
+    };
 
     handleCopyPermalink = () => {
         const {currentTeamUrl, postId} = this.props;
@@ -392,8 +390,10 @@ export default class Post extends PureComponent {
             showFullDate,
             showLongPost,
             theme,
+            isReply,
             managedConfig,
             isFlagged,
+            isConsecutivePost,
         } = this.props;
 
         if (!post) {
@@ -404,12 +404,62 @@ export default class Post extends PureComponent {
         const selected = this.state && this.state.selected ? style.selected : null;
         const highlighted = highlight ? style.highlight : null;
         const isReplyPost = this.isReplyPost();
-
         const onUsernamePress = Config.ExperimentalUsernamePressIsMention ? this.autofillUserMention : this.viewUserProfile;
 
         // postWidth = deviceWidth - profilePic width - profilePictureContainer margins - right column margin
         const postWidth = this.props.deviceWidth - 66;
-
+        if (isConsecutivePost && !isReplyPost && !commentedOnPost) {
+            return (
+                <View style={[style.container, this.props.style, highlighted, selected]}>
+                    <View style={style.consecutivePostContainer}/>
+                    <View style={style.messageContainerWithReplyBar}>
+                        {!commentedOnPost && this.renderReplyBar()}
+                        <View style={[style.rightColumn, (commentedOnPost && isLastReply && style.rightColumnPadding)]}>
+                            {isConsecutivePost || <PostHeader
+                                postId={post.id}
+                                commentedOnUserId={commentedOnPost && commentedOnPost.user_id}
+                                createAt={post.create_at}
+                                isSearchResult={isSearchResult}
+                                shouldRenderReplyButton={shouldRenderReplyButton}
+                                showFullDate={false}
+                                onPress={this.handleReply}
+                                onUsernamePress={onUsernamePress}
+                                renderReplies={renderReplies}
+                                theme={theme}
+                                isFlagged={isFlagged}
+                            />}
+                            <View style={{maxWidth: postWidth}}>
+                                <PostBody
+                                    ref={'postBody'}
+                                    canDelete={this.props.canDelete}
+                                    canEdit={this.state.canEdit}
+                                    highlight={highlight}
+                                    channelIsReadOnly={channelIsReadOnly}
+                                    isSearchResult={isSearchResult}
+                                    navigator={this.props.navigator}
+                                    onAddReaction={this.handleAddReaction}
+                                    onCopyPermalink={this.handleCopyPermalink}
+                                    onCopyText={this.handleCopyText}
+                                    onFailedPostPress={this.handleFailedPostPress}
+                                    onPermalinkPress={onPermalinkPress}
+                                    onPostDelete={this.handlePostDelete}
+                                    onPostEdit={this.handlePostEdit}
+                                    onPress={this.handlePress}
+                                    postId={post.id}
+                                    renderReplyBar={isConsecutivePost ? this.renderReplyBar : emptyFunction}
+                                    toggleSelected={this.toggleSelected}
+                                    managedConfig={managedConfig}
+                                    isFlagged={isFlagged}
+                                    isReplyPost={isReplyPost}
+                                    showAddReaction={showAddReaction}
+                                    showLongPost={showLongPost}
+                                />
+                            </View>
+                        </View>
+                    </View>
+                </View>
+            );
+        }
         return (
             <View style={[style.container, this.props.style, highlighted, selected]}>
                 <TouchableHighlight
@@ -494,6 +544,12 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => {
         messageContainerWithReplyBar: {
             flexDirection: 'row',
             flex: 1,
+        },
+        consecutivePostContainer: {
+            marginBottom: 10,
+            marginRight: 10,
+            marginLeft: 46,
+            marginTop: 10,
         },
         profilePictureContainer: {
             marginBottom: 10,
