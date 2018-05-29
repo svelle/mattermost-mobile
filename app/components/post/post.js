@@ -44,9 +44,7 @@ export default class Post extends PureComponent {
         renderReplies: PropTypes.bool,
         isFirstReply: PropTypes.bool,
         isLastReply: PropTypes.bool,
-        isReply: PropTypes.bool,
-        previousIsLastReply: PropTypes.bool,
-        isConsecutivePost: PropTypes.bool,
+        isConsecutiveReply: PropTypes.bool,
         isSearchResult: PropTypes.bool,
         commentedOnPost: PropTypes.object,
         license: PropTypes.object.isRequired,
@@ -390,10 +388,9 @@ export default class Post extends PureComponent {
             showFullDate,
             showLongPost,
             theme,
-            isReply,
             managedConfig,
-            isFlagged,
             isConsecutivePost,
+            isFlagged,
         } = this.props;
 
         if (!post) {
@@ -405,17 +402,16 @@ export default class Post extends PureComponent {
         const highlighted = highlight ? style.highlight : null;
         const isReplyPost = this.isReplyPost();
         const onUsernamePress = Config.ExperimentalUsernamePressIsMention ? this.autofillUserMention : this.viewUserProfile;
-
         // postWidth = deviceWidth - profilePic width - profilePictureContainer margins - right column margin
         const postWidth = this.props.deviceWidth - 66;
-        if (isConsecutivePost && !isReplyPost && !commentedOnPost) {
+        if (isConsecutivePost) {
             return (
                 <View style={[style.container, this.props.style, highlighted, selected]}>
                     <View style={style.consecutivePostContainer}/>
                     <View style={style.messageContainerWithReplyBar}>
-                        {!commentedOnPost && this.renderReplyBar()}
+                        {!isConsecutivePost && this.renderReplyBar()}
                         <View style={[style.rightColumn, (commentedOnPost && isLastReply && style.rightColumnPadding)]}>
-                            {isConsecutivePost || <PostHeader
+                            {(isConsecutivePost) || <PostHeader
                                 postId={post.id}
                                 commentedOnUserId={commentedOnPost && commentedOnPost.user_id}
                                 createAt={post.create_at}
