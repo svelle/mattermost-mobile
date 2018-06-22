@@ -159,6 +159,10 @@ export default class Entry extends PureComponent {
             Client4.setUserId(currentUserId);
         }
 
+        if (!credentials.token) {
+            app.waitForRehydration = false;
+        }
+
         app.setAppCredentials(app.deviceToken, currentUserId, credentials.token, credentials.url);
     };
 
